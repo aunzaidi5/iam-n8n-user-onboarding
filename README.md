@@ -48,7 +48,7 @@ Azure VNet
 
 The final workflow combines Active Directory user detection, onboarding notifications, audit logging, and AI-assisted access recommendations into one automation.
 
-![Complete Workflow](screenshots/01-Complete-Workflow.PNG)
+![Complete Workflow](screenshots/01-Complete-Workflow.PNG?raw=1)
 
 ---
 
