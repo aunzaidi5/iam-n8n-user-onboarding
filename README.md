@@ -6,7 +6,7 @@ The solution integrates **Active Directory, PowerShell, n8n, Docker, Slack, Goog
 
 > The AI component is recommendation-only and does not automatically grant Active Directory group membership.
 
-![Complete Workflow](screenshots/01-Complete-Workflow.PNG)
+![Complete Workflow](screenshots/01-Complete-Workflow.PNG?raw=1)
 
 ## Architecture
 
