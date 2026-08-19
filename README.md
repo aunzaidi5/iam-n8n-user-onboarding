@@ -131,7 +131,7 @@ The persistent volume was preserved and the Docker configuration was corrected s
 During development, n8n used:
 
 ```text
-/webhook/iam-new-user
+/webhook-test/iam-new-user
 ```
 
 ## Security & Production Considerations
