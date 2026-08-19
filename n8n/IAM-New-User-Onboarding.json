@@ -1,0 +1,494 @@
+{
+  "name": "IAM - New User Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "iam-new-user",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        224
+      ],
+      "id": "5b235419-c2a9-44ef-af44-0649c0890e65",
+      "name": "Webhook",
+      "webhookId": "6e371cfe-832b-4bc1-a66f-0316aa4df222"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f35cac1a-0de3-47d7-a9fd-2c4bf2e575b8",
+              "name": "samAccountName",
+              "value": "={{ $json.body.samAccountName }}",
+              "type": "string"
+            },
+            {
+              "id": "53d3a4a5-118e-450f-becf-e3d67823eec1",
+              "name": "displayName",
+              "value": "={{ $json.body.displayName }}",
+              "type": "string"
+            },
+            {
+              "id": "e8902c61-b79d-4515-ad4d-43cf39d4ee6f",
+              "name": "department",
+              "value": "={{ $json.body.department }}",
+              "type": "string"
+            },
+            {
+              "id": "115a09a8-1d96-435e-b6c6-f2245300ba9d",
+              "name": "createdAt",
+              "value": "={{ $json.body.createdAt }}",
+              "type": "string"
+            },
+            {
+              "id": "9fcaff2c-736f-41a3-a956-56e7436ea553",
+              "name": "email",
+              "value": "={{ $json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "64f0d026-7383-4bdd-92c3-0d7c1a0e52f3",
+              "name": "title",
+              "value": "={{ $json.body.title }}",
+              "type": "string"
+            },
+            {
+              "id": "f21c0314-92a0-4dd1-b5ac-99eeb3408528",
+              "name": "=WelcomeMessage",
+              "value": "={{ \"Welcome to IAMLAB, \" + $json.body.displayName + \"!\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        224
+      ],
+      "id": "a3a71b4a-46cc-444b-aea8-26ea4761969b",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "fromEmail": "aunzaidi28@gmail.com",
+        "toEmail": "aunzaidi28@gmail.com",
+        "subject": "=Welcome to IAMLAB - {{ $json.displayName }}",
+        "html": "=<h2>{{ $json.WelcomeMessage }}</h2>\n\n<p>Your IAMLAB account has been created.</p>\n\n<ul>\n  <li><strong>Username:</strong> {{ $json.samAccountName }}</li>\n  <li><strong>AD UPN:</strong> {{ $json.email }}</li>\n  <li><strong>Job Title:</strong> {{ $json.title }}</li>\n  <li><strong>Department:</strong> {{ $json.department }}</li>\n  <li><strong>Created:</strong> {{ $json.createdAt }}</li>\n</ul>\n\n<p>This message was generated automatically by the IAM onboarding workflow.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        128
+      ],
+      "id": "e55bdf42-b43b-4661-b29b-213964a75b43",
+      "name": "Send an Email",
+      "webhookId": "8dc08a58-0cfd-40be-8ab9-8924563e8586",
+      "credentials": {
+        "smtp": {
+          "id": "0CR03uun6sFAuzn4",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0BQAH9KLD6"
+        },
+        "text": "=🎉 **Onboarding Workflow Triggered Successfully**\n\n**{{ $json.displayName }}** has been successfully onboarded to **IAMLAB** as part of the {{ $json.department }} department with the title {{ $json.title }}.\n\n✅ Congratulations — the new user onboarding process has been initiated successfully!\n\n🔐 New IAM User Onboarded\n\nName: {{ $json.displayName }}\nUsername: {{ $json.samAccountName }}\nTitle: {{ $json.title }}\nDepartment: {{ $json.department }}\nAD UPN: {{ $json.email }}\nCreated: {{ $json.createdAt }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.6,
+      "position": [
+        512,
+        512
+      ],
+      "id": "a21f4753-b6c3-495b-aa4c-f84ac03a88e2",
+      "name": "Send a message",
+      "webhookId": "350100ba-4c3a-44b6-bb24-0ed01ff69e61",
+      "executeOnce": false,
+      "credentials": {
+        "slackApi": {
+          "id": "1HrbrOVgiv319L9N",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1njqo1WaQdKcw6mb_qeYpGdd7sLOzXe7cyNv5BUaW-k0",
+          "mode": "list",
+          "cachedResultName": "IAM Audit Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1njqo1WaQdKcw6mb_qeYpGdd7sLOzXe7cyNv5BUaW-k0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1njqo1WaQdKcw6mb_qeYpGdd7sLOzXe7cyNv5BUaW-k0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "Action": "=USER_CREATED",
+            "User": "={{ $json.displayName }}",
+            "Title": "={{ $json.title }}",
+            "Department": "={{ $json.department }}",
+            "Status": "COMPLETED"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "User",
+              "displayName": "User",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Department",
+              "displayName": "Department",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        512,
+        320
+      ],
+      "id": "821c6096-c57d-4d6f-b963-07b8858fa628",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fQHFGJOxFdCeFmfH",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an IAM access recommendation assistant.\n\nBased on the user's job title and department, recommend the SINGLE most appropriate Active Directory security group from ONLY the approved list below.\n\nUser: {{ $json.displayName }}\nJob Title: {{ $json.title }}\nDepartment: {{ $json.department }}\n\nApproved groups:\n- SG-IAM-Admins\n- SG-Cloud-Admins\n- SG-Helpdesk\n- SG-VPN-Users\n- SG-MFA-Enforced\n\nRules:\n- Select exactly ONE group.\n- Use only a group from the approved list.\n- Do not invent group names.\n- This is a recommendation only. Do not assign access.\n- Give one short reason based on the user's title and department.\n- Return ONE sentence only.\n\nFormat:\n[User] should be recommended for [Group] because [Reason].",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        448,
+        -272
+      ],
+      "id": "38533b8c-c77c-41f8-a8bd-fec3af1cca99",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:3b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        528,
+        -48
+      ],
+      "id": "7b9d30a0-868c-41bf-a46b-7bce3938117a",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "7pVGPAZlmcovDNUg",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BQAH9KLD6",
+          "mode": "id"
+        },
+        "text": "=🤖 AI Access Recommendation\n\nUser: {{ $('Edit Fields').item.json.displayName }}\nTitle: {{ $('Edit Fields').item.json.title }}\nDepartment: {{ $('Edit Fields').item.json.department }}\n\nRecommendation:\n{{ $json.text }}\n\n⚠️ Recommendation only — no Active Directory group membership has been assigned automatically.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.6,
+      "position": [
+        800,
+        -256
+      ],
+      "id": "17c2aee8-3ebb-4272-aff6-3205d76e70b0",
+      "name": "Send a message1",
+      "webhookId": "93b52fa0-0ecf-4d19-96a6-79654d57c2e3",
+      "credentials": {
+        "slackApi": {
+          "id": "1HrbrOVgiv319L9N",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1njqo1WaQdKcw6mb_qeYpGdd7sLOzXe7cyNv5BUaW-k0",
+          "mode": "list",
+          "cachedResultName": "IAM Audit Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1njqo1WaQdKcw6mb_qeYpGdd7sLOzXe7cyNv5BUaW-k0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1575224796,
+          "mode": "list",
+          "cachedResultName": "AI Recommendations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1njqo1WaQdKcw6mb_qeYpGdd7sLOzXe7cyNv5BUaW-k0/edit#gid=1575224796"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "User": "={{ $('Edit Fields').item.json.displayName }}",
+            "Title": "={{ $('Edit Fields').item.json.title }}",
+            "Department": "={{ $('Edit Fields').item.json.department }}",
+            "AI Recommendation": "={{ $json.text }}",
+            "Status": "RECOMMENDATION_ONLY"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User",
+              "displayName": "User",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Department",
+              "displayName": "Department",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Recommendation",
+              "displayName": "AI Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        -64
+      ],
+      "id": "890482ba-3bcd-4733-b23d-5b74f223fa5c",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fQHFGJOxFdCeFmfH",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cf5feb66-7949-45cd-a197-e32b71c5d4fa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b6cc2a164c497999570a8ad73b8bbdbdcddd6f304d2e529152c0c90f8265a26d"
+  },
+  "nodeGroups": [],
+  "id": "2BuWEVK7MzVnNllk",
+  "tags": []
+}
