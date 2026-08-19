@@ -26,7 +26,6 @@ The lab was built on **Microsoft Azure** using two virtual machines placed insid
 
 Both VMs were configured in the same Azure VNet/subnet.  
 This allowed DC01 to send webhook requests directly to the n8n server over the internal Azure network instead of exposing the workflow endpoint publicly.
-
 ```text
 Azure VNet
 │
@@ -42,7 +41,7 @@ Azure VNet
     ├── Docker
     ├── n8n
     └── Ollama / Qwen2.5
-
+```
 ## Workflow
 
 1. A new user is created in **Active Directory** with attributes such as username, UPN, job title, department, and creation time.
@@ -152,6 +151,7 @@ For a production implementation, I would add:
 - Deterministic role-to-group mappings for sensitive access
 
 The AI layer should remain advisory only, with access decisions enforced through IAM policy and approval controls.
+```
 
 ## Repository Structure
 
@@ -168,6 +168,7 @@ iam-n8n-user-onboarding/
 │   └── new-user-payload.json
 ├── screenshots/
 └── .gitignore
+```
 
 ## Results
 
