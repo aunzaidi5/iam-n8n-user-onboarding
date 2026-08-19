@@ -1,74 +1,107 @@
 # IAM User Onboarding Automation with n8n
 
-An end-to-end IAM automation lab that detects newly created Active Directory users and triggers an n8n workflow for onboarding notifications, audit logging, and AI-assisted access recommendations.
+An end-to-end IAM automation lab that detects newly created Active Directory users and automatically triggers onboarding notifications, audit logging, and AI-assisted access recommendations.
 
-The solution integrates **Active Directory, PowerShell, n8n, Docker, Slack, Google Sheets, Gmail, and a locally hosted Ollama/Qwen2.5 model**.
+The solution integrates **Microsoft Azure, Active Directory, PowerShell, n8n, Docker, Slack, Google Sheets, Gmail, and a locally hosted Ollama/Qwen2.5 model**.
 
-> The AI component is recommendation-only and does not automatically grant Active Directory group membership.
+> **IAM safety boundary:** The AI component is recommendation-only. It does not automatically modify Active Directory group membership.
 
 ![Complete Workflow](screenshots/01-Complete-Workflow.PNG?raw=1)
+
+---
 
 ## Architecture
 
-The lab was built on **Microsoft Azure** using two virtual machines placed inside the **same Virtual Network (VNet)** so that the domain controller and automation server could communicate over private IP addresses.
+The lab was deployed on **Microsoft Azure** using two virtual machines.
 
-- **DC01 – Windows Server 2025**
-  - Active Directory Domain Services
-  - DNS
-  - PowerShell user monitoring
-  - Domain: `iamlab.test`
+### DC01 — Windows Server 2025
 
-- **N8N01 – Ubuntu Server 24.04**
-  - Docker
-  - n8n
-  - Ollama
-  - Qwen2.5:3b
+- Active Directory Domain Services
+- DNS
+- PowerShell monitoring
+- Domain: `iamlab.test`
 
-Both VMs were configured in the same Azure VNet/subnet.  
-This allowed DC01 to send webhook requests directly to the n8n server over the internal Azure network instead of exposing the workflow endpoint publicly.
+### N8N01 — Ubuntu Server 24.04
+
+- Docker
+- n8n
+- Ollama
+- Qwen2.5:3b
+
+Both virtual machines were placed inside the **same Azure VNet and subnet**, allowing them to communicate using private networking.
+
+This allowed the Domain Controller to send webhook requests directly to the n8n server without exposing the automation endpoint publicly.
+
 ```text
-Azure VNet
-│
-├── DC01 - Windows Server
-│   ├── Active Directory
-│   ├── DNS
-│   └── PowerShell Monitor
-│
-│        HTTP POST over private network
-│                    ↓
-│
-└── N8N01 - Ubuntu Server
-    ├── Docker
-    ├── n8n
-    └── Ollama / Qwen2.5
+                         Microsoft Azure
+                              │
+                        Azure VNet/Subnet
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+      DC01 - Windows Server            N8N01 - Ubuntu
+              │                               │
+      Active Directory                   Docker
+      DNS                                ├── n8n
+      PowerShell Monitor                 └── Ollama
+              │                               │
+              └──── HTTP POST / Webhook ─────┘
 ```
-## Implementation Walkthrough
-
-### 1. Complete n8n Workflow
-
-The final workflow combines Active Directory user detection, onboarding notifications, audit logging, and AI-assisted access recommendations into one automation.
-
-![Complete Workflow](screenshots/01-Complete-Workflow.PNG?raw=1)
 
 ---
 
-### 2. n8n Webhook Trigger
+# Implementation Walkthrough
 
-A POST webhook was created in n8n to receive newly created Active Directory user information from the PowerShell monitoring script running on DC01.
+## 1. Building the n8n Workflow
 
-The final implementation uses the published production webhook rather than the temporary test webhook.
+The final n8n workflow was designed to receive identity information from Active Directory and branch into several onboarding actions.
+
+The completed workflow handles:
+
+- Welcome email
+- Slack onboarding notification
+- Google Sheets onboarding audit
+- AI-based access recommendation
+- AI recommendation notification to Slack
+- AI recommendation audit in Google Sheets
+
+The complete workflow is shown at the top of this README.
+
+---
+
+## 2. Creating the n8n Webhook
+
+A **POST webhook** was created in n8n to receive newly created Active Directory user information from DC01.
 
 ![Webhook Configuration](screenshots/02-Webhook.PNG)
 
+During development, the workflow initially used:
+
+```text
+/webhook-test/iam-new-user
+```
+
+The test endpoint requires n8n to manually listen for a test event.
+
+For the final implementation, the workflow was published and moved to:
+
+```text
+/webhook/iam-new-user
+```
+
+This allowed new Active Directory users to trigger the workflow automatically without manually starting the webhook listener.
+
 ---
 
-### 3. Transforming Active Directory Attributes
+## 3. Transforming Active Directory Data
 
-The incoming webhook payload contains attributes collected directly from Active Directory.
+The webhook receives identity attributes collected from Active Directory.
 
-The Edit Fields node normalizes the information used by the rest of the workflow, including:
+The **Edit Fields** node normalizes the data before it is passed to the rest of the workflow.
 
-- Username
+The workflow uses attributes such as:
+
+- `samAccountName`
 - Display name
 - UPN
 - Job title
@@ -80,301 +113,346 @@ The Edit Fields node normalizes the information used by the rest of the workflow
 
 ---
 
-### 4. Welcome Email Automation
+## 4. Configuring the Welcome Email
 
-After the user information is processed, n8n sends an automated welcome email.
-
-Because the lab domain `iamlab.test` does not provide real mailboxes, an external Gmail mailbox was used to validate the email workflow.
+The next branch sends an automated welcome email containing information about the newly created account.
 
 ![Welcome Email Configuration](screenshots/04-Send-Welcome-Email.PNG)
 
+The lab uses the internal domain:
+
+```text
+iamlab.test
+```
+
+Because this domain does not provide real public mailboxes, an external Gmail mailbox was used to validate email delivery.
+
 ---
 
-### 5. Slack Authentication
+## 5. Connecting Slack to n8n
 
-A Slack bot application was integrated with n8n and authenticated so the workflow could send IAM onboarding notifications into the private IAM notification channel.
+A Slack application and bot were created and connected to n8n so IAM onboarding events could be sent to a private notification channel.
 
 ![Slack Authentication](screenshots/06-Slack-Authentication-Success-In-N8N.PNG)
 
----
+Before connecting Slack to the real onboarding workflow, I first tested the integration independently.
 
-### 6. Initial Slack Integration Test
+![n8n Sending Slack Test](screenshots/07-n8n-sending-message-to-slack.PNG)
 
-Before connecting Slack to the full onboarding workflow, a standalone message was sent from n8n to verify that the bot token, channel configuration, and API permissions were working correctly.
+The test message was successfully received in Slack, confirming that the bot token, permissions and channel configuration were working correctly.
 
-![Slack Message Test](screenshots/07-n8n-sending-message-to-slack.PNG)
+![Slack Test Received](screenshots/08-Slack-Receiving-The-Message.PNG)
 
----
-
-### 7. Slack Message Successfully Received
-
-The test message successfully appeared in Slack, confirming communication between n8n and the Slack workspace.
-
-![Slack Message Received](screenshots/08-Slack-Receiving-The-Message.PNG)
+After validating the integration, the Slack node was connected to the actual IAM onboarding workflow.
 
 ---
 
-### 8. Google Sheets Authentication
+## 6. Connecting Google Sheets
 
-Google OAuth authentication was configured in n8n so onboarding and AI recommendation events could be written into Google Sheets as an audit trail.
+Google OAuth authentication was configured inside n8n so onboarding events could be written to Google Sheets.
 
 ![Google Sheets Authentication](screenshots/09-GoogleSheets-Authentication-on-n8n.PNG)
 
+Google Sheets was used as a lightweight audit trail for the lab.
+
+The onboarding sheet records information such as:
+
+```text
+Timestamp
+Action
+User
+Title
+Department
+Status
+```
+
+A second sheet is used later in the workflow to record AI-generated access recommendations.
+
 ---
 
-### 9. Dynamic IAM Onboarding Notification
+## 7. Creating a Real Active Directory Test User
 
-Once Slack integration was verified, the Slack node was connected to the actual onboarding workflow.
+Instead of testing the workflow only with manually generated webhook data, a real user was created inside the `iamlab.test` Active Directory domain.
 
-The notification dynamically includes the new user's identity attributes received from Active Directory.
+The account included identity attributes such as job title and department so they could be passed through the full automation.
+
+![Active Directory Test User](screenshots/11-AD-User-Aun-Zaidi.PNG)
+
+---
+
+## 8. Detecting New Users with PowerShell
+
+A PowerShell monitoring script runs on DC01 and checks Active Directory for newly created user accounts.
+
+When a new account is detected, the script collects the required attributes, converts them into JSON and sends them to the n8n production webhook running on N8N01.
+
+![PowerShell New User Detection](screenshots/12-PowerShell-New-User-Detection.PNG)
+
+This proved the workflow was triggered from an **actual Active Directory user creation event**.
+
+### PowerShell troubleshooting
+
+An early version of the script printed a success message even when the webhook returned an HTTP error.
+
+The script was improved using `try/catch` handling so failed webhook requests are reported correctly instead of appearing as successful executions.
+
+The public GitHub version also avoids hard-coding the n8n server address and accepts the webhook URL as configuration.
+
+---
+
+# 9. Adding AI Access Recommendations
+
+The next objective was to use AI to recommend an appropriate Active Directory security group based on the user's job title and department.
+
+Before using Ollama, several external AI options were tested.
+
+### OpenAI
+
+OpenAI required separate API billing, which is independent from a ChatGPT subscription.
+
+For this lab, I wanted to avoid introducing a paid API dependency.
+
+### Google Gemini
+
+Gemini was then tested from the Azure-hosted N8N01 server.
+
+The API returned a location restriction:
+
+```text
+User location is not supported for the API use.
+```
+
+The automation VM was running in the **Azure East Asia environment (Hong Kong)**.
+
+### Groq
+
+Groq was also tested.
+
+The same Groq API key successfully returned models from another machine, but requests originating from the Azure VM returned:
+
+```text
+403 Forbidden
+```
+
+This helped isolate the problem to the execution environment/network path rather than the n8n workflow itself.
+
+### Moving to Local AI
+
+Instead of continuing to depend on external AI APIs, the design was changed to run AI locally.
+
+**Ollama** was deployed alongside n8n using Docker.
+
+![Installing Ollama](screenshots/13-Installing-Ollama.PNG)
+
+The **Qwen2.5:3b** model was downloaded and tested successfully.
+
+This provided:
+
+- No external AI API dependency
+- No per-request API cost
+- Local processing
+- Direct communication between n8n and Ollama over the Docker network
+
+---
+
+## 10. Connecting Ollama to n8n
+
+Ollama was connected to n8n using the internal Docker service address:
+
+```text
+http://ollama:11434
+```
+
+Because n8n and Ollama run inside the same Docker Compose environment, Ollama did not need to expose its API publicly.
+
+![Ollama Connection Successful](screenshots/14-Ollama-Connection-Successful.PNG)
+
+### Docker persistence issue discovered during testing
+
+After an Azure VM restart, n8n initially failed because a configured encryption key did not match the encryption configuration already stored inside the persistent n8n data volume.
+
+The persistent volume was preserved and the Docker configuration was corrected instead of deleting the existing n8n data.
+
+This allowed the workflows and stored credentials to remain intact.
+
+---
+
+## 11. Generating the Access Recommendation
+
+The user's **job title and department** are sent to Qwen2.5 through the n8n AI chain.
+
+The model evaluates the identity against a controlled list of lab security groups:
+
+```text
+SG-IAM-Admins
+SG-Cloud-Admins
+SG-Helpdesk
+SG-VPN-Users
+SG-MFA-Enforced
+```
+
+![Ollama Recommendation Output](screenshots/15-Ollama-Output.PNG)
+
+The AI output contains a recommended group and a short explanation.
+
+### Important IAM design decision
+
+The recommendation is **advisory only**.
+
+The workflow does not automatically modify Active Directory group membership.
+
+Testing also showed why this boundary is important: forcing an LLM to always select a group can produce an unsuitable recommendation when none of the approved groups correctly match the user.
+
+A production implementation should therefore support a:
+
+```text
+NO_MATCH
+```
+
+result and require approval before access is assigned.
+
+---
+
+## 12. Publishing the Production Workflow
+
+Once all integrations were working, the n8n workflow was published and switched from the temporary test webhook to the production webhook.
+
+![Published Production Workflow](screenshots/19-Published-Workflow-Working.PNG)
+
+The final event flow is:
+
+```text
+New Active Directory User
+          │
+          ▼
+PowerShell detects user
+          │
+          ▼
+n8n Production Webhook
+          │
+          ▼
+Normalize Identity Data
+          │
+    ┌─────┼───────────────┐
+    │     │               │
+    ▼     ▼               ▼
+ Email   Slack      Google Sheets
+                         Audit
+          │
+          ▼
+   Ollama / Qwen2.5
+          │
+     AI Recommendation
+          │
+       ┌──┴──┐
+       ▼     ▼
+     Slack  Google Sheets
+            AI Audit
+```
+
+---
+
+# Results
+
+The final published workflow was tested end-to-end using a real Active Directory user creation event.
+
+## 1. Onboarding Notification in Slack
+
+The onboarding branch successfully sent the newly created user's identity information to the IAM Slack channel.
 
 ![Slack Onboarding Notification](screenshots/10-Slack-Notification.PNG)
 
 ---
 
-### 10. Active Directory Test User
+## 2. Onboarding Audit in Google Sheets
 
-A real user account was created inside the `iamlab.test` Active Directory domain to test the workflow end-to-end.
+The same onboarding event was successfully recorded in the onboarding audit sheet.
 
-The test account included job title and department information so those attributes could also be passed into the automation.
-
-![Active Directory User](screenshots/11-AD-User-Aun-Zaidi.PNG)
+![Onboarding Audit Google Sheets](screenshots/20-Onboarding-Audit-Google-Sheets.PNG)
 
 ---
 
-### 11. PowerShell Detecting the New AD User
+## 3. AI Recommendation in Slack
 
-The PowerShell monitoring script running on DC01 detected the newly created Active Directory account and sent the user's attributes as JSON to the n8n webhook running on N8N01.
-
-This proved the workflow was triggered from an actual Active Directory event rather than only through manually submitted test data.
-
-![PowerShell Detection](screenshots/12-PowerShell-New-User-Detection.PNG)
-
----
-
-### 12. Adding Local AI with Ollama
-
-External AI APIs were initially evaluated for the access recommendation component.
-
-After API billing and execution-region/network restrictions were encountered, Ollama was deployed locally alongside n8n using Docker.
-
-![Installing Ollama](screenshots/13-Installing-Ollama.PNG)
-
----
-
-### 13. Ollama Connected to n8n
-
-The local Ollama instance was connected to n8n through the Docker network.
-
-n8n communicates with Ollama internally rather than exposing the Ollama service publicly.
-
-![Ollama Connection](screenshots/14-Ollama-Connection-Successful.PNG)
-
----
-
-### 14. AI-Based Group Recommendation
-
-The user's job title and department are passed to the locally hosted Qwen2.5 model.
-
-The model evaluates the identity against a controlled list of Active Directory security groups and produces a recommendation with a short explanation.
-
-The AI output is advisory only and does not modify Active Directory membership.
-
-![Ollama Recommendation Output](screenshots/15-Ollama-Output.PNG)
-
----
-
-### 15. AI Recommendation Sent to Slack
-
-The recommendation generated by Ollama is sent to Slack so the IAM or IT team can review the suggested access.
-
-The Slack message clearly identifies the result as a recommendation rather than an automatic access assignment.
+The locally hosted Qwen model generated an access recommendation, which was then sent to Slack for review.
 
 ![AI Recommendation in Slack](screenshots/16-Slack-AI-Recommendation-working-in-slack.PNG)
 
 ---
 
-### 16. AI Recommendation Audit Trail
+## 4. AI Recommendation in Google Sheets
 
-The same AI recommendation is written into Google Sheets to maintain a separate record of the recommendation generated for the user.
+The AI recommendation was also recorded in a separate Google Sheets audit trail.
 
-![AI Recommendation in Google Sheets](screenshots/17-Ollama-response-in-google-sheets.PNG)
+![AI Recommendation Google Sheets](screenshots/17-Ollama-response-in-google-sheets.PNG)
 
 ---
 
-### 17. Welcome Email Successfully Received
+## 5. Welcome Email
 
-The welcome email generated by the workflow was successfully delivered, validating the email branch of the onboarding automation.
+The welcome email generated by the onboarding workflow was successfully delivered.
 
 ![Welcome Email Received](screenshots/18-Gmail-Email-received-screenshot.PNG)
 
 ---
 
-### 18. Published Production Workflow
+# Security & Production Considerations
 
-The final workflow was published in n8n and switched from the temporary test endpoint to the production webhook.
+This project demonstrates the complete automation flow, but several controls would be required before using the same design in a production IAM environment.
 
-This allows newly created Active Directory users to trigger the automation without manually enabling the n8n test listener.
-
-The production workflow successfully executed the onboarding and AI recommendation branches.
-
-![Published Workflow](screenshots/19-Published-Workflow-Working.PNG)
-
-## Workflow
-
-1. A new user is created in **Active Directory** with attributes such as username, UPN, job title, department, and creation time.
-
-2. A **PowerShell monitoring script** on DC01 checks Active Directory for newly created users and converts the relevant attributes into JSON.
-
-3. The script sends the payload to the **published n8n production webhook** running on N8N01.
-
-4. n8n normalizes the incoming user data and triggers several onboarding actions:
-
-   - Sends a welcome email through Gmail
-   - Sends an onboarding notification to Slack
-   - Appends an onboarding audit record to Google Sheets
-   - Sends the user's title and department to the local Ollama model
-   - Generates an AI-based AD group recommendation
-   - Sends the recommendation to Slack
-   - Records the AI recommendation in Google Sheets
-
-The workflow was tested using actual Active Directory user creation events rather than only manually generated webhook payloads.
-
-### Active Directory User
-
-![Active Directory User](screenshots/11-AD-User-Aun-Zaidi.PNG)
-
-### PowerShell Detection
-
-![PowerShell Detection](screenshots/12-PowerShell-New-User-Detection.PNG)
-
-## AI Recommendation Layer
-
-To avoid automatically assigning permissions based on an LLM response, the AI component was designed as a **recommendation-only layer**.
-
-n8n sends the user's job title and department to a locally hosted **Ollama** instance running the **Qwen2.5:3b** model.
-
-The model evaluates the user against a controlled list of Active Directory groups:
-
-- `SG-IAM-Admins`
-- `SG-Cloud-Admins`
-- `SG-Helpdesk`
-- `SG-VPN-Users`
-- `SG-MFA-Enforced`
-
-The recommendation is then sent to Slack and recorded in Google Sheets for review.
-
-No Active Directory group membership is changed automatically.
-
-### Ollama Integration
-
-![Ollama Connection](screenshots/14-Ollama-Connection-Successful.PNG)
-
-### AI Recommendation Output
-
-![AI Recommendation](screenshots/15-Ollama-Output.PNG)
-
-### Recommendation in Slack
-
-![Slack AI Recommendation](screenshots/16-Slack-AI-Recommendation-working-in-slack.PNG)
-
-### Recommendation Audit in Google Sheets
-
-![Google Sheets AI Recommendation](screenshots/17-Ollama-response-in-google-sheets.PNG)
-
-## Challenges & Troubleshooting
-
-Several issues came up while building the lab and required changes to the original design.
-
-### External AI API Restrictions
-
-The first plan was to use an external AI provider for group recommendations.
-
-- **OpenAI** required separate API billing, so it was not used for the final lab.
-- **Google Gemini** returned a location restriction when requests originated from the Azure-hosted automation VM in the East Asia/Hong Kong environment.
-- **Groq** returned HTTP `403 Forbidden` from the Azure VM, while the same API key successfully worked from another machine.
-
-Instead of depending on an external AI API, the workflow was redesigned to run **Ollama locally with Qwen2.5:3b** inside Docker.
-
-This removed the external API dependency and allowed n8n to communicate with the model directly over the Docker network.
-
-### n8n Encryption Key After VM Restart
-
-After restarting the Azure VM, n8n initially failed because the encryption key configured in Docker did not match the key stored in the existing persistent n8n data volume.
-
-The persistent volume was preserved and the Docker configuration was corrected so n8n could continue using its existing encryption configuration without losing workflows or credentials.
-
-### Test vs Production Webhooks
-
-During development, n8n used:
-
-```text
-/webhook-test/iam-new-user
-```
-
-## Security & Production Considerations
-
-This lab was designed to prove the IAM automation flow, not to represent a fully production-hardened deployment.
-
-For a production implementation, I would add:
+These include:
 
 - HTTPS for webhook traffic
 - Webhook authentication or request signing
 - Network restrictions using NSGs/firewall rules
-- Persistent AD event checkpointing to prevent missed or duplicate events
-- Retry logic and centralized error handling
-- Centralized logging / SIEM integration
-- Secret storage instead of local environment files
-- Approval workflows before privileged access is assigned
-- A `NO_MATCH` path for AI recommendations
-- Deterministic role-to-group mappings for sensitive access
+- Persistent AD event checkpointing
+- Idempotency controls to prevent duplicate processing
+- Retry and failure handling
+- Centralized logging and SIEM integration
+- Enterprise secret management
+- Approval workflows before access is assigned
+- Deterministic role-to-group mappings for privileged access
+- `NO_MATCH` support for AI recommendations
+- Auditing of both successful and failed actions
 
-The AI layer should remain advisory only, with access decisions enforced through IAM policy and approval controls.
-
-## Repository Structure
-
-```text
-iam-n8n-user-onboarding/
-├── docker/
-│   ├── compose.yaml
-│   └── .env.example
-├── n8n/
-│   └── IAM-New-User-Onboarding.json
-├── powershell/
-│   └── Monitor-NewUsers.ps1
-├── samples/
-│   └── new-user-payload.json
-├── screenshots/
-└── .gitignore
-```
-
-## Results
-
-The completed lab successfully demonstrated an end-to-end IAM onboarding event triggered from a real Active Directory user creation.
-
-The published workflow successfully:
-
-- Detected the new AD account through PowerShell
-- Triggered the n8n production webhook
-- Sent the welcome email
-- Sent the onboarding notification to Slack
-- Logged the onboarding event in Google Sheets
-- Generated an Ollama/Qwen access recommendation
-- Sent the AI recommendation to Slack
-- Logged the AI recommendation in Google Sheets
-
-### Slack Onboarding Notification
-
-![Slack Notification](screenshots/10-Slack-Notification.PNG)
-
-### Welcome Email
-
-![Welcome Email](screenshots/18-Gmail-Email-received-screenshot.PNG)
-
-### Published Workflow Execution
-
-![Published Workflow](screenshots/19-Published-Workflow-Working.PNG)
+The AI layer should remain advisory, while authorization decisions are enforced through IAM policy, governance controls and approval workflows.
 
 ---
 
-This project was built as a hands-on IAM automation lab to explore identity lifecycle automation, workflow orchestration, AI-assisted access recommendations, and the practical limitations encountered when moving from a proof of concept toward a production-ready design.
+# Repository Structure
+
+```text
+iam-n8n-user-onboarding/
+│
+├── docker/
+│   ├── compose.yaml
+│   └── .env.example
+│
+├── n8n/
+│   └── IAM-New-User-Onboarding.json
+│
+├── powershell/
+│   └── Monitor-NewUsers.ps1
+│
+├── samples/
+│   └── new-user-payload.json
+│
+├── screenshots/
+│   └── implementation evidence
+│
+└── .gitignore
+```
+
+Live passwords, Slack tokens, OAuth client secrets, AI API keys and n8n encryption keys are intentionally excluded from the repository.
+
+---
+
+# Project Outcome
+
+This project demonstrates more than an n8n workflow.
+
+It combines:
+
+**Azure infrastructure → Windows/Linux administration → Active Directory → private VNet communication → PowerShell automation → Docker → workflow orchestration → SaaS integrations → audit logging → local AI → IAM security controls.**
+
+Most importantly, the automation was validated using **real Active Directory user creation events** and the technical limitations encountered during implementation were incorporated into the final design.
