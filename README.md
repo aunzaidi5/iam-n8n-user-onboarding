@@ -131,7 +131,8 @@ The persistent volume was preserved and the Docker configuration was corrected s
 During development, n8n used:
 
 ```text
-/webhook-test/iam-new-user
+/webhook/iam-new-user
+```
 
 ## Security & Production Considerations
 
@@ -151,7 +152,6 @@ For a production implementation, I would add:
 - Deterministic role-to-group mappings for sensitive access
 
 The AI layer should remain advisory only, with access decisions enforced through IAM policy and approval controls.
-```
 
 ## Repository Structure
 
